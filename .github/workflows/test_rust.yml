@@ -35,7 +35,10 @@ jobs:
     steps:
       - uses: actions/checkout@v6.0.2
       - uses: jdx/mise-action@v3.6.1
-      - run: rustup component add clippy
+      - name: Install static analysis tools
+        run: |
+          rustup component add clippy
+          rustup component add rustfmt
       - uses: Swatinem/rust-cache@v2.8.2
       - name: Check code formatting
         run: cargo fmt -- --check
