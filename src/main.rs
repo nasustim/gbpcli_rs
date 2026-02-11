@@ -90,13 +90,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             let (sy, sm, sd) = parse_date(&start_date)?;
             let (ey, em, ed) = parse_date(&end_date)?;
 
+            let date_range = api::DateRange {
+                start_year: sy, start_month: sm, start_day: sd,
+                end_year: ey, end_month: em, end_day: ed,
+            };
+
             let resp = api::get_daily_metrics_time_series(
                 &client,
                 &token.access_token,
                 &location_id,
                 &metric,
-                sy, sm, sd,
-                ey, em, ed,
+                &date_range,
             )
             .await?;
 
@@ -112,6 +116,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             let (sy, sm, sd) = parse_date(&start_date)?;
             let (ey, em, ed) = parse_date(&end_date)?;
 
+            let date_range = api::DateRange {
+                start_year: sy, start_month: sm, start_day: sd,
+                end_year: ey, end_month: em, end_day: ed,
+            };
+
             let metrics_refs: Vec<&str> = metrics.iter().map(|s| s.as_str()).collect();
 
             let resp = api::fetch_multi_daily_metrics_time_series(
@@ -119,8 +128,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 &token.access_token,
                 &location_id,
                 &metrics_refs,
-                sy, sm, sd,
-                ey, em, ed,
+                &date_range,
             )
             .await?;
 

@@ -2,6 +2,28 @@ use serde::{Deserialize, Serialize};
 
 const BASE_URL: &str = "https://businessprofileperformance.googleapis.com/v1";
 
+pub struct DateRange {
+    pub start_year: i32,
+    pub start_month: i32,
+    pub start_day: i32,
+    pub end_year: i32,
+    pub end_month: i32,
+    pub end_day: i32,
+}
+
+impl DateRange {
+    fn to_query_params(&self) -> Vec<(&'static str, String)> {
+        vec![
+            ("dailyRange.startDate.year", self.start_year.to_string()),
+            ("dailyRange.startDate.month", self.start_month.to_string()),
+            ("dailyRange.startDate.day", self.start_day.to_string()),
+            ("dailyRange.endDate.year", self.end_year.to_string()),
+            ("dailyRange.endDate.month", self.end_month.to_string()),
+            ("dailyRange.endDate.day", self.end_day.to_string()),
+        ]
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DailyMetricTimeSeries {
@@ -52,12 +74,7 @@ pub async fn get_daily_metrics_time_series(
     access_token: &str,
     location_id: &str,
     daily_metric: &str,
-    start_year: i32,
-    start_month: i32,
-    start_day: i32,
-    end_year: i32,
-    end_month: i32,
-    end_day: i32,
+    date_range: &DateRange,
 ) -> Result<GetDailyMetricsTimeSeriesResponse, reqwest::Error> {
     let url = format!(
         "{}/locations/{}:getDailyMetricsTimeSeries",
@@ -67,17 +84,8 @@ pub async fn get_daily_metrics_time_series(
     client
         .get(&url)
         .bearer_auth(access_token)
-        .query(&[
-            ("dailyMetric", daily_metric),
-        ])
-        .query(&[
-            ("dailyRange.startDate.year", &start_year.to_string()),
-            ("dailyRange.startDate.month", &start_month.to_string()),
-            ("dailyRange.startDate.day", &start_day.to_string()),
-            ("dailyRange.endDate.year", &end_year.to_string()),
-            ("dailyRange.endDate.month", &end_month.to_string()),
-            ("dailyRange.endDate.day", &end_day.to_string()),
-        ])
+        .query(&[("dailyMetric", daily_metric)])
+        .query(&date_range.to_query_params())
         .send()
         .await?
         .error_for_status()?
@@ -90,12 +98,7 @@ pub async fn fetch_multi_daily_metrics_time_series(
     access_token: &str,
     location_id: &str,
     daily_metrics: &[&str],
-    start_year: i32,
-    start_month: i32,
-    start_day: i32,
-    end_year: i32,
-    end_month: i32,
-    end_day: i32,
+    date_range: &DateRange,
 ) -> Result<FetchMultiDailyMetricsTimeSeriesResponse, reqwest::Error> {
     let url = format!(
         "{}/locations/{}:fetchMultiDailyMetricsTimeSeries",
@@ -111,14 +114,7 @@ pub async fn fetch_multi_daily_metrics_time_series(
         .get(&url)
         .bearer_auth(access_token)
         .query(&metrics_params)
-        .query(&[
-            ("dailyRange.startDate.year", &start_year.to_string()),
-            ("dailyRange.startDate.month", &start_month.to_string()),
-            ("dailyRange.startDate.day", &start_day.to_string()),
-            ("dailyRange.endDate.year", &end_year.to_string()),
-            ("dailyRange.endDate.month", &end_month.to_string()),
-            ("dailyRange.endDate.day", &end_day.to_string()),
-        ])
+        .query(&date_range.to_query_params())
         .send()
         .await?
         .error_for_status()?
@@ -183,7 +179,13 @@ mod tests {
         assert_eq!(multi.len(), 1);
         let series = multi[0].daily_metric_time_series.as_ref().unwrap();
         assert_eq!(series[0].daily_metric.as_deref(), Some("WEBSITE_CLICKS"));
-        let values = series[0].time_series.as_ref().unwrap().daily_values.as_ref().unwrap();
+        let values = series[0]
+            .time_series
+            .as_ref()
+            .unwrap()
+            .daily_values
+            .as_ref()
+            .unwrap();
         assert_eq!(values[0].value, Some(100));
     }
 
@@ -192,5 +194,21 @@ mod tests {
         let json = r#"{}"#;
         let resp: GetDailyMetricsTimeSeriesResponse = serde_json::from_str(json).unwrap();
         assert!(resp.time_series.is_none());
+    }
+
+    #[test]
+    fn test_date_range_to_query_params() {
+        let range = DateRange {
+            start_year: 2024,
+            start_month: 1,
+            start_day: 1,
+            end_year: 2024,
+            end_month: 3,
+            end_day: 31,
+        };
+        let params = range.to_query_params();
+        assert_eq!(params.len(), 6);
+        assert_eq!(params[0], ("dailyRange.startDate.year", "2024".to_string()));
+        assert_eq!(params[5], ("dailyRange.endDate.day", "31".to_string()));
     }
 }
