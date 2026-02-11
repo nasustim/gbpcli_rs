@@ -37,4 +37,7 @@ jobs:
       - uses: jdx/mise-action@v3.6.1
       - run: rustup component add clippy
       - uses: Swatinem/rust-cache@v2.8.2
-      - run: cargo clippy -- -D warnings
+      - name: Check code formatting
+        run: cargo fmt -- --check
+      - name: Run Clippy for linting
+        run: cargo clippy -- -D warnings
