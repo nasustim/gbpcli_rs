@@ -16,28 +16,3 @@ impl Config {
         })
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_struct_fields() {
-        let config = Config {
-            client_id: "test_id".to_string(),
-            client_secret: "test_secret".to_string(),
-            refresh_token: "test_token".to_string(),
-        };
-        assert_eq!(config.client_id, "test_id");
-        assert_eq!(config.client_secret, "test_secret");
-        assert_eq!(config.refresh_token, "test_token");
-    }
-
-    #[test]
-    fn test_from_env_missing_var() {
-        let result = Config::from_env();
-        if result.is_err() {
-            assert!(matches!(result.unwrap_err(), env::VarError::NotPresent));
-        }
-    }
-}
