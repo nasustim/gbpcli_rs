@@ -1,0 +1,21 @@
+name: rust test
+
+on:
+  push:
+    branches:
+      - main
+
+concurrency:
+  group: rust-test-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4.0.0
+      - uses: jdx/mise-action@v2.0.0
+      - uses: Swatinem/rust-cache@v2.0.0
+      - run: cargo test
+      - run: cargo clippy -- -D warnings
