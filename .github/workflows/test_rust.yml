@@ -33,10 +33,6 @@ jobs:
     steps:
       - uses: actions/checkout@v6.0.2
       - uses: ./.github/actions/setup-rust
-      - name: Install static analysis tools
-        run: |
-          rustup component add clippy
-          rustup component add rustfmt
       - name: Check code formatting
         run: cargo fmt -- --check
       - name: Run Clippy for linting
