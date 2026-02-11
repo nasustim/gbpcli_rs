@@ -1,7 +1,8 @@
-mod api;
 mod auth;
 mod config;
+mod repository;
 
+use crate::repository::gbp_api::list_accounts;
 use clap::{Parser, Subcommand};
 
 use crate::auth::TokenResponse;
@@ -67,7 +68,7 @@ async fn run(cmd: Commands, token: TokenResponse) -> Result<(), Box<dyn std::err
             page_token,
             filter,
         } => {
-            let resp = api::list_accounts::run(
+            let resp = list_accounts::run(
                 &client,
                 &token.access_token,
                 parent_account.as_deref(),
@@ -89,7 +90,7 @@ mod tests {
     use wiremock::matchers::{bearer_token, method, path, query_param};
     use wiremock::{Mock, MockServer, ResponseTemplate};
 
-    use crate::api::list_accounts;
+    use crate::repository::gbp_api::list_accounts;
 
     #[tokio::test]
     async fn test_list_accounts_calls_api() {
@@ -98,18 +99,16 @@ mod tests {
         Mock::given(method("GET"))
             .and(path("/accounts"))
             .and(bearer_token("fake_token"))
-            .respond_with(
-                ResponseTemplate::new(200).set_body_json(serde_json::json!({
-                    "accounts": [
-                        {
-                            "name": "accounts/123",
-                            "accountName": "Test Account",
-                            "type": "PERSONAL",
-                            "role": "PRIMARY_OWNER"
-                        }
-                    ]
-                })),
-            )
+            .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+                "accounts": [
+                    {
+                        "name": "accounts/123",
+                        "accountName": "Test Account",
+                        "type": "PERSONAL",
+                        "role": "PRIMARY_OWNER"
+                    }
+                ]
+            })))
             .expect(1)
             .mount(&mock_server)
             .await;
@@ -144,12 +143,10 @@ mod tests {
             .and(query_param("parentAccount", "accounts/456"))
             .and(query_param("pageSize", "10"))
             .and(query_param("filter", "type=USER_GROUP"))
-            .respond_with(
-                ResponseTemplate::new(200).set_body_json(serde_json::json!({
-                    "accounts": [],
-                    "nextPageToken": "next_page"
-                })),
-            )
+            .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+                "accounts": [],
+                "nextPageToken": "next_page"
+            })))
             .expect(1)
             .mount(&mock_server)
             .await;
