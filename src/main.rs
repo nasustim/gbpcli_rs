@@ -93,7 +93,7 @@ mod tests {
     use crate::repository::gbp_api::GbpApiClient;
 
     #[tokio::test]
-    async fn test_list_accounts_calls_api() {
+    async fn test_list_accounts_calls_api() -> Result<(), Box<dyn std::error::Error>> {
         let mock_server = MockServer::start().await;
 
         Mock::given(method("GET"))
@@ -124,10 +124,11 @@ mod tests {
         assert_eq!(accounts[0].name.as_deref(), Some("accounts/123"));
         assert_eq!(accounts[0].account_name.as_deref(), Some("Test Account"));
         assert_eq!(accounts[0].account_type.as_deref(), Some("PERSONAL"));
+        Ok(())
     }
 
     #[tokio::test]
-    async fn test_list_accounts_with_params() {
+    async fn test_list_accounts_with_params() -> Result<(), Box<dyn std::error::Error>> {
         let mock_server = MockServer::start().await;
 
         Mock::given(method("GET"))
@@ -154,10 +155,12 @@ mod tests {
                 None,
                 Some("type=USER_GROUP"),
             )
-            .await?;
+            .await
+            .unwrap();
 
         let accounts = resp.accounts.unwrap();
         assert!(accounts.is_empty());
         assert_eq!(resp.next_page_token.as_deref(), Some("next_page"));
+        Ok(())
     }
 }
