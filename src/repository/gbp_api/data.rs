@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 
 pub const BASE_URL: &str = "https://mybusinessaccountmanagement.googleapis.com/v1";
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Account {
     pub name: Option<String>,

@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::repository::gbp_api::data::Account;
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ListAccountsResponse {
     pub accounts: Option<Vec<Account>>,

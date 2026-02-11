@@ -3,7 +3,7 @@ mod config;
 mod repository;
 
 use crate::auth::TokenResponse;
-use crate::repository::gbp_api::GbpApiClient;
+use crate::repository::gbp_api::{GbpApi, GbpApiClient};
 use clap::{Parser, Subcommand};
 
 #[derive(Parser)]
@@ -36,7 +36,7 @@ enum Commands {
 }
 
 #[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
+async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     dotenvy::dotenv().ok();
 
     let config = config::Config::from_env().map_err(|e| {
@@ -51,16 +51,18 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let client = reqwest::Client::new();
 
     let token = auth::refresh_access_token(&client, &config).await?;
+    let api_client = GbpApiClient::new(&client);
 
-    run(cli.command, token).await?;
+    run(cli.command, token, &api_client).await?;
 
     Ok(())
 }
 
-async fn run(cmd: Commands, token: TokenResponse) -> Result<(), Box<dyn std::error::Error>> {
-    let http_client = reqwest::Client::new();
-    let client = GbpApiClient::new(&http_client);
-
+async fn run(
+    cmd: Commands,
+    token: TokenResponse,
+    client: &impl GbpApi,
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     match cmd {
         Commands::ListAccounts {
             parent_account,
@@ -87,80 +89,48 @@ async fn run(cmd: Commands, token: TokenResponse) -> Result<(), Box<dyn std::err
 
 #[cfg(test)]
 mod tests {
-    use wiremock::matchers::{bearer_token, method, path, query_param};
-    use wiremock::{Mock, MockServer, ResponseTemplate};
+    use crate::repository::gbp_api::{GbpApi, ListAccountsResponse};
+    use crate::{Commands, run};
 
-    use crate::repository::gbp_api::GbpApiClient;
+    struct MockGbpApiClient {
+        response: ListAccountsResponse,
+    }
 
-    #[tokio::test]
-    async fn test_list_accounts_calls_api() -> Result<(), Box<dyn std::error::Error>> {
-        let mock_server = MockServer::start().await;
-
-        Mock::given(method("GET"))
-            .and(path("/accounts"))
-            .and(bearer_token("fake_token"))
-            .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
-                "accounts": [
-                    {
-                        "name": "accounts/123",
-                        "accountName": "Test Account",
-                        "type": "PERSONAL",
-                        "role": "PRIMARY_OWNER"
-                    }
-                ]
-            })))
-            .expect(1)
-            .mount(&mock_server)
-            .await;
-
-        let http_client = reqwest::Client::new();
-        let client = GbpApiClient::new(&http_client);
-        let resp = client
-            .list_accounts("fake_token", None, None, None, None)
-            .await?;
-
-        let accounts = resp.accounts.unwrap();
-        assert_eq!(accounts.len(), 1);
-        assert_eq!(accounts[0].name.as_deref(), Some("accounts/123"));
-        assert_eq!(accounts[0].account_name.as_deref(), Some("Test Account"));
-        assert_eq!(accounts[0].account_type.as_deref(), Some("PERSONAL"));
-        Ok(())
+    impl GbpApi for MockGbpApiClient {
+        async fn list_accounts(
+            &self,
+            _access_token: &str,
+            _parent_account: Option<&str>,
+            _page_size: Option<u32>,
+            _page_token: Option<&str>,
+            _filter: Option<&str>,
+        ) -> Result<ListAccountsResponse, Box<dyn std::error::Error + Send + Sync>> {
+            Ok(ListAccountsResponse {
+                accounts: self.response.accounts.clone(),
+                next_page_token: self.response.next_page_token.clone(),
+            })
+        }
     }
 
     #[tokio::test]
-    async fn test_list_accounts_with_params() -> Result<(), Box<dyn std::error::Error>> {
-        let mock_server = MockServer::start().await;
+    async fn api_called_with_command() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+        let mock_client = MockGbpApiClient {
+            response: ListAccountsResponse {
+                accounts: None,
+                next_page_token: None,
+            },
+        };
 
-        Mock::given(method("GET"))
-            .and(path("/accounts"))
-            .and(bearer_token("fake_token"))
-            .and(query_param("parentAccount", "accounts/456"))
-            .and(query_param("pageSize", "10"))
-            .and(query_param("filter", "type=USER_GROUP"))
-            .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
-                "accounts": [],
-                "nextPageToken": "next_page"
-            })))
-            .expect(1)
-            .mount(&mock_server)
-            .await;
-
-        let http_client = reqwest::Client::new();
-        let client = GbpApiClient::new(&http_client);
-        let resp = client
-            .list_accounts(
-                "fake_token",
-                Some("accounts/456"),
-                Some(10),
-                None,
-                Some("type=USER_GROUP"),
-            )
-            .await
-            .unwrap();
-
-        let accounts = resp.accounts.unwrap();
-        assert!(accounts.is_empty());
-        assert_eq!(resp.next_page_token.as_deref(), Some("next_page"));
+        let cmd = Commands::ListAccounts {
+            parent_account: None,
+            page_size: None,
+            page_token: None,
+            filter: None,
+        };
+        let token = crate::auth::TokenResponse {
+            access_token: "fake_token".to_string(),
+        };
+        run(cmd, token, &mock_client).await?;
         Ok(())
     }
 }

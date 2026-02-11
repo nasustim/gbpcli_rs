@@ -19,4 +19,3 @@ serde_json = "=1.0.145"
 dotenvy = "=0.15.7"
 
 [dev-dependencies]
-wiremock = "=0.6.5"
