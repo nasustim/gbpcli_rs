@@ -89,11 +89,14 @@ async fn run(
 
 #[cfg(test)]
 mod tests {
+    use std::cell::Cell;
+
     use crate::repository::gbp_api::{GbpApi, ListAccountsResponse};
     use crate::{Commands, run};
 
     struct MockGbpApiClient {
         response: ListAccountsResponse,
+        called: Cell<bool>,
     }
 
     impl GbpApi for MockGbpApiClient {
@@ -105,6 +108,7 @@ mod tests {
             _page_token: Option<&str>,
             _filter: Option<&str>,
         ) -> Result<ListAccountsResponse, Box<dyn std::error::Error + Send + Sync>> {
+            self.called.set(true);
             Ok(ListAccountsResponse {
                 accounts: self.response.accounts.clone(),
                 next_page_token: self.response.next_page_token.clone(),
@@ -119,6 +123,7 @@ mod tests {
                 accounts: None,
                 next_page_token: None,
             },
+            called: Cell::new(false),
         };
 
         let cmd = Commands::ListAccounts {
@@ -131,6 +136,7 @@ mod tests {
             access_token: "fake_token".to_string(),
         };
         run(cmd, token, &mock_client).await?;
+        assert!(mock_client.called.get(), "list_accounts should be called");
         Ok(())
     }
 }
