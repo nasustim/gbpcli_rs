@@ -136,7 +136,7 @@ mod tests {
             access_token: "fake_token".to_string(),
         };
         run(cmd, token, &mock_client).await?;
-        assert!(mock_client.called.get(), "list_accounts should be called");
+        assert!(mock_client.called.get(), "cause api call with command type appropreately");
         Ok(())
     }
 }
