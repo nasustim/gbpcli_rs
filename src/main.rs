@@ -83,3 +83,92 @@ async fn run(cmd: Commands, token: TokenResponse) -> Result<(), Box<dyn std::err
 
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use wiremock::matchers::{bearer_token, method, path, query_param};
+    use wiremock::{Mock, MockServer, ResponseTemplate};
+
+    use crate::api::list_accounts;
+
+    #[tokio::test]
+    async fn test_list_accounts_calls_api() {
+        let mock_server = MockServer::start().await;
+
+        Mock::given(method("GET"))
+            .and(path("/accounts"))
+            .and(bearer_token("fake_token"))
+            .respond_with(
+                ResponseTemplate::new(200).set_body_json(serde_json::json!({
+                    "accounts": [
+                        {
+                            "name": "accounts/123",
+                            "accountName": "Test Account",
+                            "type": "PERSONAL",
+                            "role": "PRIMARY_OWNER"
+                        }
+                    ]
+                })),
+            )
+            .expect(1)
+            .mount(&mock_server)
+            .await;
+
+        let client = reqwest::Client::new();
+        let resp = list_accounts::call(
+            &client,
+            &mock_server.uri(),
+            "fake_token",
+            None,
+            None,
+            None,
+            None,
+        )
+        .await
+        .unwrap();
+
+        let accounts = resp.accounts.unwrap();
+        assert_eq!(accounts.len(), 1);
+        assert_eq!(accounts[0].name.as_deref(), Some("accounts/123"));
+        assert_eq!(accounts[0].account_name.as_deref(), Some("Test Account"));
+        assert_eq!(accounts[0].account_type.as_deref(), Some("PERSONAL"));
+    }
+
+    #[tokio::test]
+    async fn test_list_accounts_with_params() {
+        let mock_server = MockServer::start().await;
+
+        Mock::given(method("GET"))
+            .and(path("/accounts"))
+            .and(bearer_token("fake_token"))
+            .and(query_param("parentAccount", "accounts/456"))
+            .and(query_param("pageSize", "10"))
+            .and(query_param("filter", "type=USER_GROUP"))
+            .respond_with(
+                ResponseTemplate::new(200).set_body_json(serde_json::json!({
+                    "accounts": [],
+                    "nextPageToken": "next_page"
+                })),
+            )
+            .expect(1)
+            .mount(&mock_server)
+            .await;
+
+        let client = reqwest::Client::new();
+        let resp = list_accounts::call(
+            &client,
+            &mock_server.uri(),
+            "fake_token",
+            Some("accounts/456"),
+            Some(10),
+            None,
+            Some("type=USER_GROUP"),
+        )
+        .await
+        .unwrap();
+
+        let accounts = resp.accounts.unwrap();
+        assert!(accounts.is_empty());
+        assert_eq!(resp.next_page_token.as_deref(), Some("next_page"));
+    }
+}
