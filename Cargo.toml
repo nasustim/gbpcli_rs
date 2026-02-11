@@ -2,6 +2,13 @@
 name = "gbpcli_rs"
 version = "0.1.0"
 edition = "2024"
+description = "CLI for Google Business Profile API"
+repository = "https://github.com/nasustim/gbpcli_rs"
+license = "MIT"
+
+[[bin]]
+name = "gbpcli"
+path = "src/main.rs"
 
 [dependencies]
 clap = { version = "4.5.57", features = ["derive"] }
