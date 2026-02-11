@@ -20,6 +20,15 @@ jobs:
       - uses: Swatinem/rust-cache@v2.0.0
       - run: cargo test
 
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4.0.0
+      - uses: jdx/mise-action@v2.0.0
+      - uses: Swatinem/rust-cache@v2.0.0
+      - run: cargo build --release
+
   lint:
     runs-on: ubuntu-latest
     timeout-minutes: 10
