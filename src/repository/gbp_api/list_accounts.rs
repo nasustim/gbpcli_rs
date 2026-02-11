@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use crate::repository::gbp_api::data::{Account, BASE_URL};
+use crate::repository::gbp_api::data::Account;
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -10,26 +10,6 @@ pub struct ListAccountsResponse {
 }
 
 pub async fn run(
-    client: &reqwest::Client,
-    access_token: &str,
-    parent_account: Option<&str>,
-    page_size: Option<u32>,
-    page_token: Option<&str>,
-    filter: Option<&str>,
-) -> Result<ListAccountsResponse, reqwest::Error> {
-    call(
-        client,
-        BASE_URL,
-        access_token,
-        parent_account,
-        page_size,
-        page_token,
-        filter,
-    )
-    .await
-}
-
-pub async fn call(
     client: &reqwest::Client,
     base_url: &str,
     access_token: &str,

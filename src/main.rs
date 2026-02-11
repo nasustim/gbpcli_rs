@@ -2,10 +2,9 @@ mod auth;
 mod config;
 mod repository;
 
-use crate::repository::gbp_api::list_accounts;
-use clap::{Parser, Subcommand};
-
 use crate::auth::TokenResponse;
+use crate::repository::gbp_api::GbpApiClient;
+use clap::{Parser, Subcommand};
 
 #[derive(Parser)]
 #[command(name = "gbpcli_rs", about = "CLI for Google Business Profile API")]
@@ -59,7 +58,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 async fn run(cmd: Commands, token: TokenResponse) -> Result<(), Box<dyn std::error::Error>> {
-    let client = reqwest::Client::new();
+    let http_client = reqwest::Client::new();
+    let client = GbpApiClient::new(&http_client);
 
     match cmd {
         Commands::ListAccounts {
@@ -68,15 +68,15 @@ async fn run(cmd: Commands, token: TokenResponse) -> Result<(), Box<dyn std::err
             page_token,
             filter,
         } => {
-            let resp = list_accounts::run(
-                &client,
-                &token.access_token,
-                parent_account.as_deref(),
-                page_size,
-                page_token.as_deref(),
-                filter.as_deref(),
-            )
-            .await?;
+            let resp = client
+                .list_accounts(
+                    &token.access_token,
+                    parent_account.as_deref(),
+                    page_size,
+                    page_token.as_deref(),
+                    filter.as_deref(),
+                )
+                .await?;
 
             println!("{}", serde_json::to_string_pretty(&resp)?);
         }
@@ -90,7 +90,7 @@ mod tests {
     use wiremock::matchers::{bearer_token, method, path, query_param};
     use wiremock::{Mock, MockServer, ResponseTemplate};
 
-    use crate::repository::gbp_api::list_accounts;
+    use crate::repository::gbp_api::GbpApiClient;
 
     #[tokio::test]
     async fn test_list_accounts_calls_api() {
@@ -113,18 +113,11 @@ mod tests {
             .mount(&mock_server)
             .await;
 
-        let client = reqwest::Client::new();
-        let resp = list_accounts::call(
-            &client,
-            &mock_server.uri(),
-            "fake_token",
-            None,
-            None,
-            None,
-            None,
-        )
-        .await
-        .unwrap();
+        let http_client = reqwest::Client::new();
+        let client = GbpApiClient::new(&http_client);
+        let resp = client
+            .list_accounts("fake_token", None, None, None, None)
+            .await?;
 
         let accounts = resp.accounts.unwrap();
         assert_eq!(accounts.len(), 1);
@@ -151,18 +144,17 @@ mod tests {
             .mount(&mock_server)
             .await;
 
-        let client = reqwest::Client::new();
-        let resp = list_accounts::call(
-            &client,
-            &mock_server.uri(),
-            "fake_token",
-            Some("accounts/456"),
-            Some(10),
-            None,
-            Some("type=USER_GROUP"),
-        )
-        .await
-        .unwrap();
+        let http_client = reqwest::Client::new();
+        let client = GbpApiClient::new(&http_client);
+        let resp = client
+            .list_accounts(
+                "fake_token",
+                Some("accounts/456"),
+                Some(10),
+                None,
+                Some("type=USER_GROUP"),
+            )
+            .await?;
 
         let accounts = resp.accounts.unwrap();
         assert!(accounts.is_empty());
