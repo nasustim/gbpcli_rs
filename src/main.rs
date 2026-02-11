@@ -4,6 +4,8 @@ mod config;
 
 use clap::{Parser, Subcommand};
 
+use crate::auth::TokenResponse;
+
 #[derive(Parser)]
 #[command(name = "gbpcli_rs", about = "CLI for Google Business Profile API")]
 struct Cli {
@@ -50,14 +52,22 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let token = auth::refresh_access_token(&client, &config).await?;
 
-    match cli.command {
+    run(cli.command, token).await?;
+
+    Ok(())
+}
+
+async fn run(cmd: Commands, token: TokenResponse) -> Result<(), Box<dyn std::error::Error>> {
+    let client = reqwest::Client::new();
+
+    match cmd {
         Commands::ListAccounts {
             parent_account,
             page_size,
             page_token,
             filter,
         } => {
-            let resp = api::list_accounts(
+            let resp = api::list_accounts::run(
                 &client,
                 &token.access_token,
                 parent_account.as_deref(),
