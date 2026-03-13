@@ -4,7 +4,7 @@ description: Set up Rust toolchain and cache
 runs:
   using: composite
   steps:
-    - uses: jdx/mise-action@v3.6.3
+    - uses: jdx/mise-action@v4.0.0
     - name: Install static analysis tools
       shell: sh
       run: |
